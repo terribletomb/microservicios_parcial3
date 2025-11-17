@@ -62,8 +62,17 @@ jobs:
 
       - name: Ejecutar pruebas con cobertura
         run: |
-          go test ./... -coverprofile=coverage.out
-          go tool cover -func=coverage.out
+          set -e
+          mkdir -p /tmp/coverage
+
+          # Buscar directorios que contienen go.mod
+          find . -name 'go.mod' -not -path "./.git/*" -print0 | xargs -0 -n1 dirname | sort -u | while read -r moddir; do
+            echo "Ejecutando tests en $moddir"
+            (cd "$moddir" && go test ./... -coverprofile=coverage.out) || exit 1
+            if [ -f "$moddir/coverage.out" ]; then
+              mv "$moddir/coverage.out" "/tmp/coverage/coverage_$(echo "$moddir" | tr '/' '_').out"
+            fi
+          done
 
       - name: Guardar cobertura como artefacto
         uses: actions/upload-artifact@v4
@@ -144,4 +153,5 @@ jobs:
           tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
+
 
