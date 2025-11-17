@@ -22,7 +22,7 @@ jobs:
         ports:
           - 27017:27017
         options: >-
-          --health-cmd="mongo --eval 'db.adminCommand(\"ping\")'"
+          --health-cmd="mongosh --eval 'db.adminCommand(\"ping\")'"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
@@ -43,10 +43,22 @@ jobs:
 
       - name: Esperar Mongo disponible
         run: |
+          # Esperar que el puerto TCP 27017 esté abierto (works without mongo client)
           for i in $(seq 1 30); do
-            mongo --eval "db.adminCommand('ping')" && break
-            sleep 2
+            if (echo > /dev/tcp/localhost/27017) >/dev/null 2>&1; then
+              echo "Mongo TCP abierto"
+              break
+            fi
+            sleep 1
           done
+
+          # Si el runner tiene mongosh disponible, intentar un ping más preciso
+          if command -v mongosh >/dev/null 2>&1; then
+            for i in $(seq 1 30); do
+              mongosh --eval "db.adminCommand('ping')" && break
+              sleep 1
+            done
+          fi
 
       - name: Ejecutar pruebas con cobertura
         run: |
@@ -132,3 +144,4 @@ jobs:
           tag_name: ${{ github.ref_name }}
           draft: false
           prerelease: false
+
